@@ -9,7 +9,7 @@ The package can be installed using `devtools`:
 ```S
 install.packages('devtools')
 library('devtools')
-devtools::install_github('MPK', 'jacsor')
+devtools::install_github('jacsor/MPK')
 ```
 
 ### Use
