@@ -1,0 +1,44 @@
+Variability decomposition across related mixture distributions
+==============================================================
+
+This package fits MPK, an algorithm to compare multiple related mixture distributions.
+
+### Install
+The package can be installed using `devtools`:
+
+```S
+install.packages('devtools')
+library('devtools')
+devtools::install_github('MPK', 'jacsor')
+```
+
+### Use
+There are four functions in this package, and their descriptions are provided in the help files
+
+```S
+ans = mpk(Y, C)
+state = getFinalState(ans)
+plotDiff(ans)
+cal = calibrate(ans)
+```
+
+### Example
+
+```S
+n = c(250, 250)
+p = 4
+Y1 = rbind( matrix( rnorm( n[1]*p), ncol = p), matrix( rnorm(n[2]*p) + 3, ncol = p))
+Y2 = rbind( matrix( rnorm( n[1]*p), ncol = p), matrix( rnorm(n[2]*p) + 4, ncol = p))
+Y = rbind(Y1, Y2)
+C = c( rep(1,sum(n)), rep(2,sum(n)))
+ans = mpk(Y, C)  
+plotDiff(ans, type = "weight")
+plotDiff(ans, type = "shift")
+cal = calibrate(ans)
+par(mfrow=c(1,2))
+plot(Y, col = C)
+plot(cal$Y_cal, col = C)
+```
+
+### Reference
+To do.
