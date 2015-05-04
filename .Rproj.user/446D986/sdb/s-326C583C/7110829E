@@ -1,0 +1,16 @@
+{
+    "contents" : "\n# set a random seed to generate consistent data sets for testing\nset.seed(123)\n\n# number of events to create for each cluster\nn_events_clusterA = 500\nn_events_clusterB = 500\n\n# number of columns in our data sets\nn_parameters = 2\n\n# generate 1st data set\nclusterA_events = matrix(rnorm( n_events_clusterA * n_parameters), ncol = n_parameters)\nclusterB_events = matrix(rnorm( n_events_clusterA * n_parameters) + 10, ncol = n_parameters)\ndata_set_1 = rbind(clusterA_events, clusterB_events)\n\n# generate 2nd data set\nclusterA_events = matrix(rnorm( n_events_clusterA * n_parameters), ncol = n_parameters)\nclusterB_events = matrix(rnorm( n_events_clusterA * n_parameters) + 8, ncol = n_parameters)\ndata_set_2 = rbind(clusterA_events, clusterB_events)\n\n# shuffle the data sets\ndata_set_1 = data_set_1[sample(nrow(data_set_1)),]\ndata_set_2 = data_set_2[sample(nrow(data_set_2)),]\n\n# combine data sets into 1 matrix\nY = rbind(data_set_1, data_set_2)\n\n# map for identifying the data set for each event\nC = c(rep(1, nrow(data_set_1)), rep(2, nrow(data_set_2)))\n\n# define our clustering parameters\nmcmc = list(nburn = 500, nsave = 500, nskip = 1, ndisplay = 1000, seed = 5)\n\nans = mpk(Y, C, mcmc = mcmc)\n\nstate = get_final_state(ans)\n\nans = mpk(Y, C, mcmc = mcmc, state = state)\n\ncal = calibrate(ans)\n\npar(mfrow=c(1,2))\nplot(Y, col = C, pch=20, cex=0.5)\nplot(cal$Y_cal, col = C, pch=20, cex=0.5)\n\npar(mfrow=c(1,1))\nplot.ts(ans$chain$epsilon[,1])\n\npar(mfrow=c(1,1))\nplot.ts(ans$chain$epsilon0)\n",
+    "created" : 1430770758956.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "471872817",
+    "id" : "7110829E",
+    "lastKnownWriteTime" : 1430770779,
+    "path" : "~/Dropbox/Duke/Thesis/locally_tied_stick_breaking/code/V7/MPK/MPK/examples/example2.R",
+    "project_path" : "examples/example2.R",
+    "properties" : {
+    },
+    "source_on_save" : false,
+    "type" : "r_source"
+}

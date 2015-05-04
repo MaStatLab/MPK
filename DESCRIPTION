@@ -1,0 +1,15 @@
+Package: MPK
+Type: Package
+Title: Mixtures of Perturbed Kernels
+Version: 1.0
+Date: 2015-04-29
+Author: Jacopo Soriano
+Maintainer: Jacopo Soriano <jacopo.soriano@duke.edu>
+Description: Bayesian hierarchical model for comparison across mixtures
+    distributions. The model detects variations across the distributions in the
+    mixture weights and in the mixture locations.
+License: BSD_3_clause + file LICENSE
+Imports:
+    Rcpp (>= 0.11.2),
+    RcppArmadillo (>= 0.4.400.0)
+LinkingTo: Rcpp, RcppArmadillo

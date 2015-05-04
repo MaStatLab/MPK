@@ -1,0 +1,17 @@
+{
+    "contents" : "get_final_state <- function(object, iter = object$mcmc$nsave)\n{\n  state = list()  \n  state$alpha = object$chain$alpha[iter]\n  state$epsilon0 = object$chain$epsilon0[iter]\n  state$epsilon = object$chain$epsilon[iter,]\n  state$k_0 = object$chain$k_0[iter]\n  state$m_1 = object$chain$m_1[iter,]\n  state$mus = object$chain$mus[,,iter]\n  state$mu_0 = object$chain$mu_0[,,iter]\n  state$Omega_1 = object$chain$Omega_1[,,iter]\n  state$Omegas = object$chain$Omegas[,,iter]\n  state$Z = object$chain$Z[iter,]\n  state$W = object$chain$w[,,iter]\n  \n  return(state)\n}",
+    "created" : 1430518024886.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3276656386",
+    "id" : "41B29344",
+    "lastKnownWriteTime" : 1430518519,
+    "path" : "~/Dropbox/Duke/Thesis/locally_tied_stick_breaking/code/V7/MPK/MPK/R/get_final_state.R",
+    "project_path" : "R/get_final_state.R",
+    "properties" : {
+        "tempName" : "Untitled1"
+    },
+    "source_on_save" : false,
+    "type" : "r_source"
+}
