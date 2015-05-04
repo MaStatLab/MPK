@@ -11,6 +11,6 @@
 .idea
 
 # Rstudio project files
-*.Rproj
-*.Rhistory
-*.Ruildignore
+.Rproj.user
+.Rhistory
+.Ruildignore
