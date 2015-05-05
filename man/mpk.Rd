@@ -37,7 +37,7 @@ For \eqn{i = 1, \ldots, n_j} and \eqn{j = 1, \ldots, J}:
 where
 \deqn{(w_{j,1}, \ldots, w_{j,K}) | \alpha \sim Dirichlet(\alpha/K) }
 \deqn{ \mu_{j,k} | \mu_{0,k} \epsilon_k, \Sigma_k \sim Normal(\mu_{0,k}, \epsilon_k \Sigma_k)}
-\deqn{\epsilon_k | \epsilon_0  \sim Inv-Gamma( \tau_{\epsilon}, \epsilon_0 \tau_{\epsilon}  ) }
+\deqn{\epsilon_k | \epsilon_0  \sim Inv-Gamma( \tau_{\epsilon} + 1, \epsilon_0 \tau_{\epsilon}  ) }
 \deqn{ \mu_{0,k} | \Sigma_k, k_0 \sim Normal(m_1, \Sigma_k / k_0)  }
 \deqn{\Sigma_{k}^{-1}| \Psi_1 \sim Wishart(\Psi_1, \nu_1).}
 In addition, there are the following hyperpriors:

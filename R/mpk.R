@@ -23,7 +23,7 @@
 #' where 
 #' \deqn{(w_{j,1}, \ldots, w_{j,K}) | \alpha \sim Dirichlet(\alpha/K) }
 #' \deqn{ \mu_{j,k} | \mu_{0,k} \epsilon_k, \Sigma_k \sim Normal(\mu_{0,k}, \epsilon_k \Sigma_k)}
-#' \deqn{\epsilon_k | \epsilon_0  \sim Inv-Gamma( \tau_{\epsilon}, \epsilon_0 \tau_{\epsilon}  ) }
+#' \deqn{\epsilon_k | \epsilon_0  \sim Inv-Gamma( \tau_{\epsilon} + 1, \epsilon_0 \tau_{\epsilon}  ) }
 #' \deqn{ \mu_{0,k} | \Sigma_k, k_0 \sim Normal(m_1, \Sigma_k / k_0)  }
 #' \deqn{\Sigma_{k}^{-1}| \Psi_1 \sim Wishart(\Psi_1, \nu_1).}
 #' In addition, there are the following hyperpriors:
@@ -110,7 +110,7 @@ mpk <- function(Y, C, prior = NULL, mcmc = NULL, state = NULL)
     state = list()  
   
   if(is.null(state$Z))
-    state$Z = kmeans(Y, 2*prior$K/3, iter.max = 100  )$cluster - 1
+    state$Z = kmeans(Y, 2*prior$K/3, iter.max = 100, algorithm="Lloyd")$cluster - 1
   
   if(is.null(state$epsilon))
     state$epsilon = 1/rgamma(prior$K, shape = prior$tau_epsilon, 

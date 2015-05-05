@@ -487,7 +487,7 @@ kernel_coeffs_type MCMC::UpdateMuSigmaEpsilon(    arma::uvec Z,
     for(int j=0; j<J; j++)
       mu.col(j) = trans( mvrnormScaling(mean_std.row(j+1).cols(0,p-1), mu_0new,  Sigma*epsilon ));      
       
-    epsilon_new = 1 / rgammaBayes(tau_epsilon, tau_epsilon*epsilon0);  
+    epsilon_new = 1 / rgammaBayes(tau_epsilon + 1, tau_epsilon*epsilon0);  
     
   }
   else  // N_k > 0
@@ -551,7 +551,7 @@ kernel_coeffs_type MCMC::UpdateMuSigmaEpsilon(    arma::uvec Z,
       temp_ss +=  as_scalar( ( mu.col(j).t() - mu_0new.t()) * Omega * ( mu.col(j) - mu_0new ) ); 
     }  
     
-    epsilon_new = 1 / rgammaBayes(tau_epsilon + (double)p*J/2, tau_epsilon*epsilon0 + temp_ss/2);  
+    epsilon_new = 1 / rgammaBayes(tau_epsilon + 1 + (double)p*J/2, tau_epsilon*epsilon0 + temp_ss/2);  
     
   }
   
@@ -631,8 +631,8 @@ double MCMC::UpdateEpsilon0(  double epsilon0,
   log_acc += R::dbeta(epsilon0, e0_new * epsilon0_par, epsilon0_par * (1 - e0_new), 1 );
   
   for(int k=0; k<K; k++)
-   log_acc += dInvGamma(epsilon(k), tau_epsilon, tau_epsilon*e0_new) - 
-    dInvGamma(epsilon(k), tau_epsilon, tau_epsilon*epsilon0);
+   log_acc += dInvGamma(epsilon(k), tau_epsilon + 1, tau_epsilon*e0_new) - 
+    dInvGamma(epsilon(k), tau_epsilon + 1, tau_epsilon*epsilon0);
     
   if( exp(log_acc) > R::runif(0,1) )
     output = e0_new;
@@ -688,7 +688,7 @@ kernel_coeffs_type MCMC::PriorMuSigmaEpsilon(   arma::mat Sigma_1,
 
   Omega = rWishartArma(Omega_1, nu_1);
   Sigma = inv_sympd( Omega );   
-  epsilon = 1 / rgammaBayes(tau_epsilon, tau_epsilon*epsilon0);
+  epsilon = 1 / rgammaBayes(tau_epsilon + 1, tau_epsilon*epsilon0);
   
   mu_0new = trans(mvrnormArma(1, m_1, Sigma/k_0));    
   for(int j=0; j<J; j++)
