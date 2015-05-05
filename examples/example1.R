@@ -1,6 +1,6 @@
 
 library(MPK)
-n = c(250, 250)
+n = c(150, 150)
 p = 4
  
 Y1 = rbind( matrix( rnorm( n[1]*p), ncol = p), matrix( rnorm(n[2]*p) + 3, ncol = p))

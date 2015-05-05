@@ -3,4 +3,4 @@ import(RcppArmadillo)
 importFrom(Rcpp, evalCpp)
 # exportPattern("^[[:alpha:]]+")
 
-export(mpk, plotDiff, calibrate, getFinalState)
+export(mpk, plotDiff, calibrate, getFinalState, getScore)

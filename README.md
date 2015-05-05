@@ -13,13 +13,14 @@ devtools::install_github('jacsor/MPK')
 ```
 
 ### Use
-There are four functions in this package, and their descriptions are provided in the help files
+There are five functions in this package, and their descriptions are provided in the help files
 
 ```S
 ans = mpk(Y, C)
 state = getFinalState(ans)
 plotDiff(ans)
 cal = calibrate(ans)
+score = getScore(ans)
 ```
 
 ### Example
