@@ -45,6 +45,7 @@ class MCMC
   // alpha parameters
   vec tau_alpha;  // (2); tau_alpha.fill(1);
   double tau_epsilon;
+  double trunc_epsilon;
   vec tau_epsilon0;
   double epsilon0_par;
   bool merge_step;  // 
@@ -54,6 +55,7 @@ class MCMC
   
   int length_chain; 
   
+  double saveAlphaHM, saveEpsilon0HM;
   vec saveK0, saveEpsilon0, saveAlpha;
   mat saveOdds, saveEpsilon, saveM1, saveShifts;
   cube saveW, saveMu, saveMu0, saveOmega, saveOmega1;

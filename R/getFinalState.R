@@ -33,6 +33,8 @@ getFinalState <- function(object, iter = object$mcmc$nsave)
   state$Omegas = object$chain$Omegas[,,iter]
   state$Z = object$chain$Z[iter,]
   state$W = object$chain$w[,,iter]
+  state$alphaHM = object$state$alphaHM
+  state$epsilon0HM = object$state$epsilon0HM
   
   return(state)
 }

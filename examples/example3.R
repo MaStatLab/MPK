@@ -39,7 +39,7 @@ data.3 = remove.extremes(data.3)
 data = rbind(data.1, data.2, data.3)
 
 
-nobs = 1000
+nobs = 5000
 set.seed(1)
 dim = seq(5,10)
 Y_tot = scale( as.matrix( rbind(  data.1[sample(nrow(data.1),nobs),], 
@@ -60,6 +60,8 @@ mcmc = list(nburn = 5000, nsave = 500, nskip = 10, ndisplay = 100, seed = 2)
 prior = list( K = 60 )
 
 ans = mpk(Y_tot, C, prior = prior, mcmc = mcmc)
+
+
 
 plotDiff(ans, type = "shift", dim = c(4,5))
 plotDiff(ans, type = "weight", dim = c(4,5))

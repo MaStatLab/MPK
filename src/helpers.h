@@ -27,6 +27,7 @@ arma::vec dmvnrm_arma_precision(  arma::mat x,
                                   
 double rgammaBayes(double shape, double rate);
 
+double rgammaBayesTruncated(double shape, double rate, double left = 0, double right = -1); 
 
 double beta_fun(arma::vec alpha, bool logB = true);
 

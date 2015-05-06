@@ -74,13 +74,15 @@ mpk <- function(Y, C, prior = NULL, mcmc = NULL, state = NULL)
   if(is.null(prior$tau_alpha))
     prior$tau_alpha = c(1,1)
   if(is.null(prior$tau_epsilon))
-    prior$tau_epsilon = p*J/2  
+    prior$tau_epsilon = 1  # p*J/2  
   if(is.null(prior$tau_epsilon0))
     prior$tau_epsilon0 = c(0.1,1) 
   if(is.null(prior$merge_step))
     prior$merge_step = TRUE
   if(is.null(prior$merge_par))
     prior$merge_par = 0.1
+  if(is.null(prior$trunc_epsilon))
+    prior$trunc_epsilon = 2
     
       
   if(is.null(mcmc))
@@ -104,7 +106,8 @@ mpk <- function(Y, C, prior = NULL, mcmc = NULL, state = NULL)
   # from Dirk Eddelbuettel here:
   #  https://github.com/RcppCore/RcppArmadillo/issues/11
   set.seed(mcmc$seed) 
-
+  
+  eps_trunc = 2
   
   if(is.null(state))
     state = list()  
@@ -113,8 +116,15 @@ mpk <- function(Y, C, prior = NULL, mcmc = NULL, state = NULL)
     state$Z = kmeans(Y, 2*prior$K/3, iter.max = 100, algorithm="Lloyd")$cluster - 1
   
   if(is.null(state$epsilon))
-    state$epsilon = 1/rgamma(prior$K, shape = prior$tau_epsilon, 
-                             rate = prior$tau_epsilon*prior$tau_epsilon0[1]/sum(prior$tau_epsilon0))
+  {
+    mean_eps0 = prior$tau_epsilon0[1]/sum(prior$tau_epsilon0)
+    u = runif( prior$K, pgamma(1/eps_trunc, shape = prior$tau_epsilon, 
+                               rate = prior$tau_epsilon*mean_eps0),1 )
+    state$epsilon = 1/qgamma(u, shape = prior$tau_epsilon, 
+                           rate = prior$tau_epsilon*mean_eps0)
+  }
+#     state$epsilon = 1/rgamma(prior$K, shape = prior$tau_epsilon + 1, 
+#                              rate = prior$tau_epsilon*prior$tau_epsilon0[1]/sum(prior$tau_epsilon0))
   
   if(is.null(state$epsilon_0))
     state$epsilon_0 = prior$tau_epsilon0[1]/sum(prior$tau_epsilon0)
@@ -128,10 +138,10 @@ mpk <- function(Y, C, prior = NULL, mcmc = NULL, state = NULL)
     state$Omegas = matrix(NA, nrow = p , ncol = p*prior$K)
     for(k in 1:prior$K)
     {
-      if(N[k] > p + 1)
-        state$Omegas[,seq(p*(k-1)+1,p*(k-1)+p)] = solve(cov(Y[state$Z==k,]))
+      if(N[k] > p + 5)
+        state$Omegas[,seq(p*(k-1)+1,p*(k-1)+p)] = solve(cov(Y[state$Z==k,]) + diag(p)) 
       else
-        state$Omegas[,seq(p*(k-1)+1,p*(k-1)+p)] = state$Omega_1   
+        state$Omegas[,seq(p*(k-1)+1,p*(k-1)+p)] = state$Omega_1
     }
   }
   
@@ -170,6 +180,12 @@ mpk <- function(Y, C, prior = NULL, mcmc = NULL, state = NULL)
   
   if(is.null(state$m_1))
      state$m_1 = colMeans(Y)  
+
+  if(is.null(state$alphaMH))
+    state$alphaMH = sqrt(prior$K)
+
+  if(is.null(state$epsilon0MH))
+    state$epsilon0MH = sqrt(prior$K)
 
   #####################################
   

@@ -34,7 +34,7 @@ mcmc = list(nburn = 500, nsave = 500, nskip = 1, ndisplay = 1000, seed = 5)
 
 ans = mpk(Y, C, mcmc = mcmc)
 
-state = get_final_state(ans)
+state = getFinalState(ans)
 
 ans = mpk(Y, C, mcmc = mcmc, state = state)
 

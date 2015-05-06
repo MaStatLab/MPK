@@ -1,6 +1,6 @@
 
 library(MPK)
-n = c(150, 150)
+n = c(250, 250)
 p = 4
  
 Y1 = rbind( matrix( rnorm( n[1]*p), ncol = p), matrix( rnorm(n[2]*p) + 3, ncol = p))
@@ -13,5 +13,10 @@ ans = mpk(Y, C)
 plotDiff(ans, type = "weight")
 plotDiff(ans, type = "shift")
 
+plot.ts(ans$chain$epsilon0)
 
+table(ans$chain$Z[1000,])
+
+plot.ts(ans$chain$epsilon[,1])
+plot.ts(ans$chain$epsilon[,4])
 

@@ -48,7 +48,8 @@ MCMC::MCMC( mat Y,
       tau_epsilon0 = Rcpp::as<vec>(prior["tau_epsilon0"]);
       merge_step = Rcpp::as<bool>(prior["merge_step"]);
       merge_par = Rcpp::as<double>(prior["merge_par"]);
-      Z_input = Rcpp::as<uvec>(state["Z"]);
+      Z_input = Rcpp::as<uvec>(state["Z"]);      
+      trunc_epsilon = Rcpp::as<double>(prior["trunc_epsilon"]);
       
       length_chain =  num_iter/num_thin;
       saveAlpha.set_size(length_chain);
@@ -83,7 +84,7 @@ void MCMC::main_loop(Rcpp::List state)
   vec indices;
   // latent assignments
   uvec Z = Z_input;
-
+  
   /* --- parameters --- */
   
   // link between mean and covariance
@@ -91,14 +92,14 @@ void MCMC::main_loop(Rcpp::List state)
   // perturbation parameter for the mean
   double epsilon0  = Rcpp::as<double>(state["epsilon_0"]);
   double epsilon0_old = epsilon0;
-  double epsilon0_par = sqrt(K);
+  double epsilon0_par = Rcpp::as<double>(state["epsilon0MH"]);
   vec epsilon = Rcpp::as<vec>(state["epsilon"]);
   int epsilon0_count = 0; 
   int epsilon0_tot = 100;
   // mass parameter for the dirichlet prior on the mixture weights
   double alpha = Rcpp::as<double>(state["alpha"]);
   double alpha_old = alpha;
-  double alpha_par = sqrt(K);
+  double alpha_par = Rcpp::as<double>(state["alphaMH"]);
   double alpha_count = 0; 
   int alpha_tot = 100; 
   // mixture weights
@@ -156,14 +157,13 @@ void MCMC::main_loop(Rcpp::List state)
           for(int kk=k+1; kk < K ; kk++)
           {
             if( sum(N.col(kk)) > 0  )
-            {
-              
+            {              
               double kl_div = KL( mu_0.col(k), 
                                   mu_0.col(kk), 
                                   Sigma.slice(k), 
                                   Omega.slice(k), 
                                   Sigma.slice(kk), 
-                                  Omega.slice(kk) ) / epsilon0 ;
+                                  Omega.slice(kk) ) / ( 0.5*epsilon(k) +  0.5*epsilon(kk));
               if( kl_div < R::qchisq(merge_par, (double)p, 1, 0) )
               {
                 
@@ -321,6 +321,9 @@ void MCMC::main_loop(Rcpp::List state)
       
   }
   
+  saveAlphaHM = alpha_par;
+  saveEpsilon0HM = epsilon0_par;
+  
   cout << endl << "MH acceptance rate " << endl;
   cout << "epsilon0: " << (double)epsilon0_count/num_iter << endl;
   cout << "alpha: " << alpha_count / (double)num_iter << endl;
@@ -417,7 +420,7 @@ double MCMC::UpdateAlpha(double alpha, arma::mat N, double alpha_par)
   double output = alpha;    
   double log_ratio = 0;
   double temp = rgammaBayes(  pow( alpha, 2 ) * alpha_par, 
-                        alpha * alpha_par );
+                        alpha * alpha_par );                      
   
   log_ratio += R::dgamma(alpha, pow(temp,2)* alpha_par, 1/temp/alpha_par, 1);                          
   log_ratio -= R::dgamma(temp, pow(alpha,2)* alpha_par, 1/alpha/alpha_par, 1);  
@@ -487,7 +490,7 @@ kernel_coeffs_type MCMC::UpdateMuSigmaEpsilon(    arma::uvec Z,
     for(int j=0; j<J; j++)
       mu.col(j) = trans( mvrnormScaling(mean_std.row(j+1).cols(0,p-1), mu_0new,  Sigma*epsilon ));      
       
-    epsilon_new = 1 / rgammaBayes(tau_epsilon + 1, tau_epsilon*epsilon0);  
+    epsilon_new = 1/ rgammaBayesTruncated(tau_epsilon + 1, tau_epsilon*epsilon0, 1.0/trunc_epsilon, -1 );  
     
   }
   else  // N_k > 0
@@ -550,9 +553,9 @@ kernel_coeffs_type MCMC::UpdateMuSigmaEpsilon(    arma::uvec Z,
         
       temp_ss +=  as_scalar( ( mu.col(j).t() - mu_0new.t()) * Omega * ( mu.col(j) - mu_0new ) ); 
     }  
-    
-    epsilon_new = 1 / rgammaBayes(tau_epsilon + 1 + (double)p*J/2, tau_epsilon*epsilon0 + temp_ss/2);  
-    
+
+    epsilon_new = 1 / rgammaBayesTruncated(tau_epsilon + 1 + (double)p*J/2, 
+                                            tau_epsilon*epsilon0 + temp_ss/2, 1.0/trunc_epsilon, -1);    
   }
   
   output.mu_0 = mu_0new;
@@ -630,9 +633,18 @@ double MCMC::UpdateEpsilon0(  double epsilon0,
   log_acc -= R::dbeta(e0_new, epsilon0 * epsilon0_par, epsilon0_par * (1 - epsilon0), 1 );
   log_acc += R::dbeta(epsilon0, e0_new * epsilon0_par, epsilon0_par * (1 - e0_new), 1 );
   
+//  for(int k=0; k<K; k++)
+//   log_acc += dInvGamma(epsilon(k), tau_epsilon + 1, tau_epsilon*e0_new) - 
+//    dInvGamma(epsilon(k), tau_epsilon + 1, tau_epsilon*epsilon0);
+    
   for(int k=0; k<K; k++)
-   log_acc += dInvGamma(epsilon(k), tau_epsilon + 1, tau_epsilon*e0_new) - 
-    dInvGamma(epsilon(k), tau_epsilon + 1, tau_epsilon*epsilon0);
+  {
+    log_acc += R::dgamma(1/epsilon(k), tau_epsilon + 1, 1/(tau_epsilon*e0_new), 1) - 
+      R::dgamma(1/epsilon(k), tau_epsilon + 1, 1/(tau_epsilon*epsilon0),1);
+    log_acc += R::pgamma( 1.0/2, tau_epsilon + 1, 1/(tau_epsilon*epsilon0), 0, 1  )-  
+      R::pgamma( 1.0/2, tau_epsilon + 1, 1/(tau_epsilon*e0_new), 0, 1  );
+  }
+
     
   if( exp(log_acc) > R::runif(0,1) )
     output = e0_new;
@@ -658,7 +670,9 @@ Rcpp::List MCMC::get_chain()
     Rcpp::Named( "Omega_1" ) = saveOmega1,
     Rcpp::Named( "Omegas" ) = saveOmega,
     Rcpp::Named( "Z" ) = saveZ,
-    Rcpp::Named( "w" ) = saveW
+    Rcpp::Named( "w" ) = saveW,
+    Rcpp::Named( "epsilon0HM" ) = saveEpsilon0HM,
+    Rcpp::Named( "alphaHM" ) = saveAlphaHM
   );
 };
 
@@ -688,7 +702,10 @@ kernel_coeffs_type MCMC::PriorMuSigmaEpsilon(   arma::mat Sigma_1,
 
   Omega = rWishartArma(Omega_1, nu_1);
   Sigma = inv_sympd( Omega );   
-  epsilon = 1 / rgammaBayes(tau_epsilon + 1, tau_epsilon*epsilon0);
+  
+//  while(epsilon > trunc_epsilon)
+//    epsilon = 1 / rgammaBayes(tau_epsilon + 1, tau_epsilon*epsilon0);
+  epsilon = 1 / rgammaBayesTruncated(tau_epsilon + 1, tau_epsilon*epsilon0, 1.0/trunc_epsilon, -1);  
   
   mu_0new = trans(mvrnormArma(1, m_1, Sigma/k_0));    
   for(int j=0; j<J; j++)
