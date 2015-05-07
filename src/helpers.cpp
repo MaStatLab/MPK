@@ -27,8 +27,6 @@ arma::mat mvrnormArma(int n, arma::vec mu, arma::mat sigma)
 {
   int ncols = sigma.n_cols;
   arma::mat Y = arma::randn(n, ncols);
-  // cout << "mvrnormArma" << endl;
-  // cout << sigma << endl;
   return arma::repmat(mu, 1, n).t() + Y * arma::chol(sigma);
 }
 
@@ -94,10 +92,14 @@ double rgammaBayesTruncated(double shape, double rate, double left = 0, double r
   else
     u = runif(1, R::pgamma(left, shape, 1/rate, 1, 0), R::pgamma(left, shape, 1/rate, 1, 0) )(0);
   double output = R::qgamma(u, shape, 1/rate, 1, 0);
-  if(R::pgamma(left, shape, 1/rate, 1, 0) == 1)
+  if(R::pgamma(left, shape, 1/rate, 1, 0) > 1 - 10E-10)
     output = left;
-  // cout << "u = " << u << ", " << output << ", left = " << R::pgamma(left, shape, 1/rate, 1, 0) << endl;  
-  // cout << "  shape = " << shape << ", rate = " << rate << endl;
+//  if(output > 50)
+//  {
+//    cout << "u = " << u << ", out = " << output << ", left = " << R::pgamma(left, shape, 1/rate, 1, 0) << endl;  
+//    cout << "  shape = " << shape << ", rate = " << rate << endl;
+//  }
+
   return  output;
 }
 
