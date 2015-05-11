@@ -80,7 +80,7 @@ mpk <- function(Y, C, prior = NULL, mcmc = NULL, state = NULL)
   if(is.null(prior$merge_step))
     prior$merge_step = TRUE
   if(is.null(prior$merge_par))
-    prior$merge_par = 0.1
+    prior$merge_par = 0.5
   if(is.null(prior$trunc_epsilon))
     prior$trunc_epsilon = 2
     

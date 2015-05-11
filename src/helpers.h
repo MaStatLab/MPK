@@ -49,6 +49,7 @@ double KL(  arma::vec mu_1,
             
 double dInvGamma( double x, double alpha, double beta, bool log_like = true);
             
+double multiGamma(double x, const int p = 1, bool logScale = true);
 
 
 #endif

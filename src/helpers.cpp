@@ -208,3 +208,19 @@ double dInvGamma( double x, double alpha, double beta, bool log_like = true)
     output = exp(output);
   return output;  
 }
+
+
+
+// log Multivariate gamma function (used for Wishart distn)
+double multiGamma(double x, const int p = 1, bool logScale = true) {
+  double ans = log(M_PI)*p*(p - 1)/4.0;
+  for (int j = 1; j <= p; j++) 
+    ans += lgamma(x - (1-j)/2.0);
+  if(logScale == false)
+    ans = exp(ans);
+  return ans;
+}
+
+
+
+

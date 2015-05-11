@@ -148,43 +148,96 @@ void MCMC::main_loop(Rcpp::List state)
       cout << "Iteration: " << it + 1 << " of " << num_iter + num_burnin << endl;
             
     // MERGE STEP
-    if(merge_step)
+    if( merge_step && (it > num_burnin/4.0) )
     {
       for( int k=0; k< K - 1 ; k++ )
       {
-        if( sum(N.col(k)) > 0 )
+        if( sum(N.col(k)) > 1 )
         {
           for(int kk=k+1; kk < K ; kk++)
           {
-            if( sum(N.col(kk)) > 0  )
-            {              
+            if( sum(N.col(kk)) > 1  )
+            { 
+              
               double kl_div = KL( mu_0.col(k), 
                                   mu_0.col(kk), 
                                   Sigma.slice(k), 
                                   Omega.slice(k), 
                                   Sigma.slice(kk), 
-                                  Omega.slice(kk) ) / ( 0.5*epsilon(k) +  0.5*epsilon(kk));
-              if( kl_div < R::qchisq(merge_par, (double)p, 1, 0) )
+                                  Omega.slice(kk) ) / (trunc_epsilon*epsilon0);
+                             
+              if( kl_div < R::qchisq(0.9, (double)p, 1, 0) )
               {
-                
-                mu_0.col(k) = mu_0.col(k)*sum(N.col(k)) + mu_0.col(kk)*sum(N.col(kk));
-                for(int j = 0; j<J; j++)
-                  mu.slice(k).row(j) =  mu.slice(k).row(j)*( (N(j,k)+0.5 )/(N(j,k)+N(j,kk)+1.0) ) + mu.slice(k).row(j)*( (N(j,kk)+0.5 )/(N(j,k)+N(j,kk)+1.0) );
-                Sigma.slice(k) = Sigma.slice(k)*sum(N.col(k)) + Sigma.slice(kk)*sum(N.col(kk));
-                Omega.slice(k) = inv_sympd(Sigma.slice(k));
-                epsilon(k) = epsilon(k)*sum(N.col(k)) + epsilon(kk)*sum(N.col(kk));
-                N.col(k) = N.col(k) + N.col(kk);
-                N.col(kk) = zeros<vec>(J);                  
-                kc = PriorMuSigmaEpsilon(  Sigma_1, 
-                                           Omega_1, 
-                                           k_0, 
-                                           epsilon0,
-                                           m_1 );
-                mu.slice(kk) = kc.mu;
-                mu_0.col(kk) = kc.mu_0;
-                Omega.slice(kk) = kc.Omega;   
-                Sigma.slice(kk) = kc.Sigma;       
-                epsilon(kk) = kc.epsilon;
+                double merge_prob =  merge_step_new( Z,
+                                                     k,
+                                                     kk,
+                                                     mu_0.col(k),
+                                                     mu_0.col(kk),
+                                                     Sigma_1,
+                                                     trunc_epsilon
+                                                    );     
+
+                if(merge_prob > 1.0 - merge_par)
+                {           
+                  mu_0.col(k) = (mu_0.col(k)*sum(N.col(k)) + mu_0.col(kk)*sum(N.col(kk))) / ( (double)sum(N.col(k)) + (double)sum(N.col(kk)) );
+                  epsilon(k) = (epsilon(k)*sum(N.col(k)) + epsilon(kk)*sum(N.col(kk))) / ( (double)sum(N.col(k)) + (double)sum(N.col(kk)) );
+                  uvec Z_kk = arma::find( Z==kk );
+                  Z(Z_kk) = k*ones<uvec>(Z_kk.n_elem);
+                  mat norm_draws = randn<mat>( J+1, p);
+                  mat norm_draws_cov = randn<mat>( nu_1 + sum(N.col(k)) + sum(N.col(kk)), p);
+                  kc = UpdateMuSigmaEpsilon(  Z,
+                                              k,
+                                              mu_0.col(k),
+                                              Sigma_1, 
+                                              Omega_1,
+                                              k_0, 
+                                              epsilon(k),
+                                              epsilon0,
+                                              m_1,
+                                              norm_draws,
+                                              norm_draws_cov
+                                            ); 
+                  mu.slice(k) = kc.mu; 
+                  mu_0.col(k) = kc.mu_0;
+                  Omega.slice(k) = kc.Omega;   
+                  Sigma.slice(k) = kc.Sigma;  
+                  epsilon(k) = kc.epsilon;
+                  
+                  N.col(k) = N.col(k) + N.col(kk);
+                  N.col(kk) = zeros<vec>(J);    
+                  kc = PriorMuSigmaEpsilon(  Sigma_1, 
+                           Omega_1, 
+                           k_0, 
+                           epsilon0,
+                           m_1 );
+                  mu.slice(kk) = kc.mu;
+                  mu_0.col(kk) = kc.mu_0;
+                  Omega.slice(kk) = kc.Omega;   
+                  Sigma.slice(kk) = kc.Sigma;       
+                  epsilon(kk) = kc.epsilon;
+                  
+                  
+                  /*
+                  mu_0.col(k) = mu_0.col(k)*sum(N.col(k)) + mu_0.col(kk)*sum(N.col(kk));
+                  for(int j = 0; j<J; j++)
+                    mu.slice(k).row(j) =  mu.slice(k).row(j)*( (N(j,k)+0.5 )/(N(j,k)+N(j,kk)+1.0) ) + mu.slice(k).row(j)*( (N(j,kk)+0.5 )/(N(j,k)+N(j,kk)+1.0) );
+                  Sigma.slice(k) = Sigma.slice(k)*sum(N.col(k)) + Sigma.slice(kk)*sum(N.col(kk));
+                  Omega.slice(k) = inv_sympd(Sigma.slice(k));
+                  epsilon(k) = epsilon(k)*sum(N.col(k)) + epsilon(kk)*sum(N.col(kk));
+                  N.col(k) = N.col(k) + N.col(kk);
+                  N.col(kk) = zeros<vec>(J);                  
+                  kc = PriorMuSigmaEpsilon(  Sigma_1, 
+                                             Omega_1, 
+                                             k_0, 
+                                             epsilon0,
+                                             m_1 );
+                  mu.slice(kk) = kc.mu;
+                  mu_0.col(kk) = kc.mu_0;
+                  Omega.slice(kk) = kc.Omega;   
+                  Sigma.slice(kk) = kc.Sigma;       
+                  epsilon(kk) = kc.epsilon;
+                  */
+                }
                         
               }
   
@@ -718,4 +771,148 @@ kernel_coeffs_type MCMC::PriorMuSigmaEpsilon(   arma::mat Sigma_1,
   output.epsilon = epsilon;
   return output;    
 };
+
+
+
+double MCMC::merge_step_new( arma::uvec Z,
+                             int k_1,
+                             int k_2,
+                             arma::vec mu_01,
+                             arma::vec mu_02,
+                             arma::mat Sigma_1,
+                             double epsilon
+                            )
+{
+  
+  vec mar_like(2);
+  uvec Z_k;
+  mat data_group;
+  vec C_k;
+  int N_k, N_1, N_2;
+  double sign, sign0;
+  mat Psi(p,p);
+  double log_extra_piece;
+  double log_det_Psi = 0, log_det_Psi0 = 0; 
+  vec n_jk(J);
+  mat mean_jk(p,J); 
+  vec mean_k(p); 
+  mat SS_jk(p,p), ss_jk(p,p);
+  vec mu_0(p);
+  
+  log_det(log_det_Psi0, sign0, Sigma_1); 
+  
+  // marginal likelihood first group
+  
+  Z_k = arma::find( Z==k_1 );
+  mu_0 = mu_01;
+  data_group = Y.rows(Z_k);
+  C_k = C(Z_k);
+  N_k = data_group.n_rows;      
+  N_1 = N_k;
+  SS_jk.fill(0);
+  ss_jk.fill(0);
+  log_extra_piece = 0;
+
+  for(int j=0; j<J; j++)
+  {
+    uvec indices = find(C_k==j);
+    n_jk(j) = indices.n_elem;     
+    
+    if (n_jk(j) > 0)
+    {
+        mean_jk.col(j) = mean(data_group.rows(indices),0).t();
+        mat mean_jk_rep = repmat( trans(mean_jk.col(j)),(int)n_jk(j), 1);
+        SS_jk = SS_jk + (data_group.rows(indices) - mean_jk_rep).t() * ( data_group.rows(indices) - mean_jk_rep );
+        ss_jk = ss_jk + (mean_jk.col(j) - mu_0) * (mean_jk.col(j) - mu_0).t() / (epsilon + 1.0/n_jk(j));
+        log_extra_piece +=  log( epsilon*n_jk(j) + 1.0 );
+       
+    }
+  }          
+  Psi = inv_sympd( Sigma_1 + SS_jk + ss_jk );
+  log_det(log_det_Psi, sign, Psi); 
+  
+  mar_like(0) = (nu_1 + N_k)/2.0 * log_det_Psi - p/2.0 * log_extra_piece + nu_1/2.0*log_det_Psi0
+    - multiGamma(nu_1/2.0, p) + multiGamma((nu_1 + N_k)/2.0, p);
+  
+  // marginal likelihood second group
+  Z_k.reset();
+  Z_k = arma::find( Z==k_2 );
+  mu_0 = mu_02;
+  data_group.reset();
+  data_group = Y.rows(Z_k);
+  C_k.reset();
+  C_k = C(Z_k);
+  N_k = data_group.n_rows;    
+  N_2 = N_k;
+  SS_jk.fill(0);
+  ss_jk.fill(0);  
+  log_extra_piece = 0;  
+  
+  for(int j=0; j<J; j++)
+  {
+    uvec indices = find(C_k==j);
+    n_jk(j) = indices.n_elem;     
+    
+    if (n_jk(j) > 0)
+    {
+        mean_jk.col(j) = mean(data_group.rows(indices),0).t();
+        mat mean_jk_rep = repmat( trans(mean_jk.col(j)),(int)n_jk(j), 1);
+        SS_jk = SS_jk + (data_group.rows(indices) - mean_jk_rep).t() * ( data_group.rows(indices) - mean_jk_rep );
+        ss_jk = ss_jk + (mean_jk.col(j) - mu_0) * (mean_jk.col(j) - mu_0).t() / (epsilon + 1.0/n_jk(j));
+        log_extra_piece +=  log( epsilon*n_jk(j) + 1.0 );
+       
+    }
+  }          
+  Psi = inv_sympd( Sigma_1 + SS_jk + ss_jk );
+  log_det(log_det_Psi, sign, Psi);  
+  mar_like(0) += (nu_1 + N_k)/2.0 * log_det_Psi - p/2.0 * log_extra_piece + nu_1/2.0*log_det_Psi0 
+    - multiGamma(nu_1/2.0, p) + multiGamma((nu_1 + N_k)/2.0, p);
+  
+  
+  // marginal likelihood combined group
+  
+  Z_k.reset();
+  Z_k = arma::find( (Z==k_1) || (Z==k_2) );
+  mu_0 = (N_1 * mu_01 + N_2 * mu_02)/( (double)N_1 + (double)N_2 );
+  data_group.reset();
+  data_group = Y.rows(Z_k);
+  C_k.reset();
+  C_k = C(Z_k);
+  N_k = data_group.n_rows;      
+  SS_jk.fill(0);
+  ss_jk.fill(0);    
+  log_extra_piece = 0;
+
+  for(int j=0; j<J; j++)
+  {
+    uvec indices = find(C_k==j);
+    n_jk(j) = indices.n_elem;     
+    
+    if (n_jk(j) > 0)
+    {
+        mean_jk.col(j) = mean(data_group.rows(indices),0).t();
+        mat mean_jk_rep = repmat( trans(mean_jk.col(j)),(int)n_jk(j), 1);
+        SS_jk = SS_jk + (data_group.rows(indices) - mean_jk_rep).t() * ( data_group.rows(indices) - mean_jk_rep );
+        ss_jk = ss_jk + (mean_jk.col(j) - mu_0) * (mean_jk.col(j) - mu_0).t() / (epsilon + 1.0/n_jk(j));
+        log_extra_piece +=  log( epsilon*n_jk(j) + 1.0 );
+       
+    }
+  }          
+  Psi = inv_sympd( Sigma_1 + SS_jk + ss_jk );
+  log_det(log_det_Psi, sign, Psi);  
+  mar_like(1) = (nu_1 + N_k)/2.0 * log_det_Psi - p/2.0 * log_extra_piece + nu_1/2.0*log_det_Psi0
+    - multiGamma(nu_1/2.0, p) + multiGamma((nu_1 + N_k)/2.0, p);
+    
+  // cout << mar_like.t() << endl;
+  /*
+  cout << "new part = " << nu_1/2.0*log_det_Psi0 - multiGamma(nu_1/2.0, p) + multiGamma((nu_1 + N_1)/2.0, p)
+   + nu_1/2.0*log_det_Psi0 - multiGamma(nu_1/2.0, p) + multiGamma((nu_1 + N_2)/2.0, p) ;
+  cout << ", " << nu_1/2.0*log_det_Psi0 - multiGamma(nu_1/2.0, p) + multiGamma((nu_1 + N_k)/2.0, p) << endl;
+  */
+  
+  mar_like = exp( mar_like - max(mar_like) );
+  return ( mar_like(1) / sum(mar_like)  );
+  
+  
+}
 

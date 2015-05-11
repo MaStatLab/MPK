@@ -111,6 +111,15 @@ class MCMC
                                           double k_0, 
                                           double epsilon0,
                                           arma::vec m_1 ); 
+                                          
+  double merge_step_new( arma::uvec Z,
+                             int k_1,
+                             int k_2,
+                             arma::vec mu_01,
+                             arma::vec mu_02,
+                             arma::mat Sigma_1,
+                             double epsilon
+                            );                                        
 
   
   public:
