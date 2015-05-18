@@ -216,27 +216,6 @@ void MCMC::main_loop(Rcpp::List state)
                   Sigma.slice(kk) = kc.Sigma;       
                   epsilon(kk) = kc.epsilon;
                   
-                  
-                  /*
-                  mu_0.col(k) = mu_0.col(k)*sum(N.col(k)) + mu_0.col(kk)*sum(N.col(kk));
-                  for(int j = 0; j<J; j++)
-                    mu.slice(k).row(j) =  mu.slice(k).row(j)*( (N(j,k)+0.5 )/(N(j,k)+N(j,kk)+1.0) ) + mu.slice(k).row(j)*( (N(j,kk)+0.5 )/(N(j,k)+N(j,kk)+1.0) );
-                  Sigma.slice(k) = Sigma.slice(k)*sum(N.col(k)) + Sigma.slice(kk)*sum(N.col(kk));
-                  Omega.slice(k) = inv_sympd(Sigma.slice(k));
-                  epsilon(k) = epsilon(k)*sum(N.col(k)) + epsilon(kk)*sum(N.col(kk));
-                  N.col(k) = N.col(k) + N.col(kk);
-                  N.col(kk) = zeros<vec>(J);                  
-                  kc = PriorMuSigmaEpsilon(  Sigma_1, 
-                                             Omega_1, 
-                                             k_0, 
-                                             epsilon0,
-                                             m_1 );
-                  mu.slice(kk) = kc.mu;
-                  mu_0.col(kk) = kc.mu_0;
-                  Omega.slice(kk) = kc.Omega;   
-                  Sigma.slice(kk) = kc.Sigma;       
-                  epsilon(kk) = kc.epsilon;
-                  */
                 }
                         
               }
@@ -282,7 +261,7 @@ void MCMC::main_loop(Rcpp::List state)
     mat norm_draws_cov = randn<mat>( nu_1*K + n, p);
     vec dfs = zeros<vec>( K + 1 );
     dfs.rows(1, K)  =  cumsum( sum(N, 0).t() + nu_1 );
-    
+        
     // #pragma omp parallel for private(tempSMuSigma)
     for(int k=0; k < K; k++)
     {      
@@ -558,12 +537,6 @@ kernel_coeffs_type MCMC::UpdateMuSigmaEpsilon(    arma::uvec Z,
     vec mean_k = mean(data_group,0).t();
     mat SS_jk(p,p), ss_jk_1(p,p);
     
-    // marginal likelihood under model 0
-    mat mean_k_rep = repmat( mean_k.t(), N_k, 1);
-    mat SS_k = ( data_group - mean_k_rep ).t() * ( data_group - mean_k_rep );
-    mat ss_k = N_k * ( mean_k - mu_0 ) * ( mean_k - mu_0 ).t();        
-    
-    // marginal likelihood under model 1 
     extra_piece_var_1 = k_0;
     m1_1 = k_0 * m_1;     
     SS_jk.fill(0);
@@ -584,26 +557,37 @@ kernel_coeffs_type MCMC::UpdateMuSigmaEpsilon(    arma::uvec Z,
           m1_1 = m1_1 +  n_jk(j) / (epsilon * n_jk(j) + 1.0) * mean_jk.col(j);
          
       }
-    }          
-    Psi_1 = inv_sympd( Sigma_1 + SS_jk + ss_jk_1 );     
+    }    
+  
+    vec eigval;
+    mat eigvec;
+    eig_sym( eigval, eigvec, Sigma_1 + SS_jk + ss_jk_1  );
+    // cout << ", min = " << min(eigval) << endl;
+    if( min(eigval) < 10E-11 )
+      Psi_1 = eigvec * ( diagmat( 1.0 / ( eigval + 10E-10 )  ) ) * eigvec.t();
+    else
+      Psi_1 = eigvec * ( diagmat( 1.0 / eigval ) ) * eigvec.t();
+    
+    //Psi_1 = inv_sympd( Sigma_1 + SS_jk + ss_jk_1 );     */
 
     Omega = WishartScaling(cov_std, Psi_1);
-    Sigma = inv_sympd( Omega ); 
-    m1_1 = m1_1 / extra_piece_var_1;
-    mu_0new = trans( mvrnormScaling(mean_std.row(0).cols(0,p-1), m1_1, Sigma/extra_piece_var_1));
+    Sigma = inv_sympd( Omega );     
     
+    m1_1 = m1_1 / extra_piece_var_1;
+    mu_0new = trans( mvrnormScaling2(mean_std.row(0).cols(0,p-1), m1_1, Sigma, 1.0/extra_piece_var_1));
+        
     double temp_ss = 0;
     for(int j=0; j<J; j++)
     {
       if( n_jk(j) > 0 )
       {
-        mu.col(j) = trans( mvrnormScaling(mean_std.row(j+1).cols(0,p-1), 
+        mu.col(j) = trans( mvrnormScaling2( mean_std.row(j+1).cols(0,p-1), 
           (n_jk(j)*mean_jk.col(j) + 1.0/epsilon*mu_0new)/(n_jk(j) + 1.0/epsilon), 
-          Sigma/(n_jk(j) + 1.0/epsilon)));
+          Sigma, 1.0/(n_jk(j) + 1.0/epsilon) ) );
       }
       else
-        mu.col(j) = trans( mvrnormScaling(mean_std.row(j+1).cols(0,p-1), mu_0new,  Sigma*epsilon) );           
-        
+        mu.col(j) = trans( mvrnormScaling2(mean_std.row(j+1).cols(0,p-1), mu_0new,  Sigma, 1.0/epsilon ) );   
+
       temp_ss +=  as_scalar( ( mu.col(j).t() - mu_0new.t()) * Omega * ( mu.col(j) - mu_0new ) ); 
     }  
 

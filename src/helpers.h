@@ -14,6 +14,9 @@ arma::mat mvrnormArma(int n, arma::vec mu, arma::mat sigma);
 arma::mat mvrnormScaling( arma::mat Y, 
                           arma::vec mu, 
                           arma::mat sigma );
+                          
+arma::mat mvrnormScaling2( arma::mat Y, arma::vec mu, arma::mat sigma, double c ); 
+
 
 arma::mat rWishartArma(arma::mat Sigma, int df);
 
