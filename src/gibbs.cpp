@@ -562,7 +562,6 @@ kernel_coeffs_type MCMC::UpdateMuSigmaEpsilon(    arma::uvec Z,
     vec eigval;
     mat eigvec;
     eig_sym( eigval, eigvec, Sigma_1 + SS_jk + ss_jk_1  );
-    // cout << ", min = " << min(eigval) << endl;
     if( min(eigval) < 10E-11 )
       Psi_1 = eigvec * ( diagmat( 1.0 / ( eigval + 10E-10 )  ) ) * eigvec.t();
     else
@@ -886,13 +885,6 @@ double MCMC::merge_step_new( arma::uvec Z,
   log_det(log_det_Psi, sign, Psi);  
   mar_like(1) = (nu_1 + N_k)/2.0 * log_det_Psi - p/2.0 * log_extra_piece + nu_1/2.0*log_det_Psi0
     - multiGamma(nu_1/2.0, p) + multiGamma((nu_1 + N_k)/2.0, p);
-    
-  // cout << mar_like.t() << endl;
-  /*
-  cout << "new part = " << nu_1/2.0*log_det_Psi0 - multiGamma(nu_1/2.0, p) + multiGamma((nu_1 + N_1)/2.0, p)
-   + nu_1/2.0*log_det_Psi0 - multiGamma(nu_1/2.0, p) + multiGamma((nu_1 + N_2)/2.0, p) ;
-  cout << ", " << nu_1/2.0*log_det_Psi0 - multiGamma(nu_1/2.0, p) + multiGamma((nu_1 + N_k)/2.0, p) << endl;
-  */
   
   mar_like = exp( mar_like - max(mar_like) );
   return ( mar_like(1) / sum(mar_like)  );

@@ -100,11 +100,6 @@ double rgammaBayesTruncated(double shape, double rate, double left = 0, double r
   double output = R::qgamma(u, shape, 1/rate, 1, 0);
   if(R::pgamma(left, shape, 1/rate, 1, 0) > 1 - 10E-10)
     output = left;
-  if(output > 100)
-  {
-    cout << "u = " << u << ", out = " << output << ", left = " << R::pgamma(left, shape, 1/rate, 1, 0) << endl;  
-    cout << "  shape = " << shape << ", rate = " << rate << endl;
-  }
 
   return  output;
 }
