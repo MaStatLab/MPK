@@ -3,6 +3,7 @@
 #' Given draws from the posterior, this function calibrates data-sets.   
 #'
 #' @param x An \code{MPK} object
+#' @param reference.group  
 #' @return A list with three objects: 
 #' \code{Ycal} is a matrix containing the calibrated data;
 #' \code{calibration_distribution} is an array 
@@ -24,7 +25,7 @@
 #' par(mfrow=c(1,2))
 #' plot(Y, col = C)
 #' plot(cal$Y_cal, col = C)
-calibrate <- function(x)
+calibrate <- function(x, reference.group = NULL)
 {
   if(class(x)!="MPK")
   {
@@ -33,12 +34,15 @@ calibrate <- function(x)
   }
   C = x$data$C - 1
   Z = x$chain$Z - 1
+  ref = ifelse(is.null(reference.group), -1, reference.group - 1 )
   output = calib(x$data$Y, 
                  C, 
                  Z, 
                  x$chain$mus, dim(x$chain$mus),
-                 x$chain$mu_0, dim(x$chain$mu_0) ) 
+                 x$chain$mu_0, dim(x$chain$mu_0),
+                 ref ) 
   colnames(output$Y_cal) = colnames(x$data$Y)
+  output$reference.group = reference.group
   return(output)
   
 }

@@ -7,8 +7,8 @@
 using namespace Rcpp;
 
 // calib
-Rcpp::List calib(arma::mat Y, arma::vec C, arma::mat Z, NumericVector mu_input, IntegerVector mu_dim, NumericVector mu0_input, IntegerVector mu0_dim);
-RcppExport SEXP MPK_calib(SEXP YSEXP, SEXP CSEXP, SEXP ZSEXP, SEXP mu_inputSEXP, SEXP mu_dimSEXP, SEXP mu0_inputSEXP, SEXP mu0_dimSEXP) {
+Rcpp::List calib(arma::mat Y, arma::vec C, arma::mat Z, NumericVector mu_input, IntegerVector mu_dim, NumericVector mu0_input, IntegerVector mu0_dim, int ref);
+RcppExport SEXP MPK_calib(SEXP YSEXP, SEXP CSEXP, SEXP ZSEXP, SEXP mu_inputSEXP, SEXP mu_dimSEXP, SEXP mu0_inputSEXP, SEXP mu0_dimSEXP, SEXP refSEXP) {
 BEGIN_RCPP
     SEXP __sexp_result;
     {
@@ -20,7 +20,8 @@ BEGIN_RCPP
         Rcpp::traits::input_parameter< IntegerVector >::type mu_dim(mu_dimSEXP );
         Rcpp::traits::input_parameter< NumericVector >::type mu0_input(mu0_inputSEXP );
         Rcpp::traits::input_parameter< IntegerVector >::type mu0_dim(mu0_dimSEXP );
-        Rcpp::List __result = calib(Y, C, Z, mu_input, mu_dim, mu0_input, mu0_dim);
+        Rcpp::traits::input_parameter< int >::type ref(refSEXP );
+        Rcpp::List __result = calib(Y, C, Z, mu_input, mu_dim, mu0_input, mu0_dim, ref);
         PROTECT(__sexp_result = Rcpp::wrap(__result));
     }
     UNPROTECT(1);

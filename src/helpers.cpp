@@ -89,16 +89,17 @@ double rgammaBayes(double shape, double rate)
 }
 
 
-double rgammaBayesTruncated(double shape, double rate, double left = 0, double right = -1) 
+double rgammaBayesTruncated(double u, double shape, double rate, double left = 0, double right = -1) 
 {
   // right = -1 means right = Infinity
-  double u = 0;
-  if(right == -1)
-    u = runif(1, R::pgamma(left, shape, 1/rate, 1, 0))(0);
-  else
-    u = runif(1, R::pgamma(left, shape, 1/rate, 1, 0), R::pgamma(left, shape, 1/rate, 1, 0) )(0);
-  double output = R::qgamma(u, shape, 1/rate, 1, 0);
-  if(R::pgamma(left, shape, 1/rate, 1, 0) > 1 - 10E-10)
+  // u is a random number from a uniform distribution between 0 and 1
+  double a = R::pgamma(left, shape, 1/rate, 1, 0);
+  double b = 1.0;
+  if(right > 0)
+    b = R::pgamma(right, shape, 1/rate, 1, 0);
+  double v = (b - a)*u + a;  
+  double output = R::qgamma(v, shape, 1/rate, 1, 0);
+  if(a > 1 - 10E-10)
     output = left;
 
   return  output;

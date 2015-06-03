@@ -55,7 +55,7 @@ C = C[idx.order]
 
 
 
-mcmc = list(nburn = 5000, nsave = 500, nskip = 10, ndisplay = 100, seed = 2)
+mcmc = list(nburn = 5000, nsave = 500, nskip = 1, ndisplay = 100, seed = 2)
 
 prior = list( K = 60 )
 

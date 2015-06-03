@@ -78,16 +78,17 @@ class MCMC
                            double alpha  );
                             
   kernel_coeffs_type UpdateMuSigmaEpsilon(  arma::uvec Z,
-                              int k,  
-                              arma::vec mu_0,
-                              arma::mat Sigma_1, 
-                              arma::mat Omega_1, 
-                              double k_0, 
-                              double epsilon,
-                              double epsilon0,
-                              arma::vec m_1,
-                              arma::mat mean_std,
-                              arma::mat cov_std  );      
+                                            int k,  
+                                            arma::vec mu_0,
+                                            arma::mat Sigma_1, 
+                                            arma::mat Omega_1, 
+                                            double k_0, 
+                                            double epsilon,
+                                            double epsilon0,
+                                            arma::vec m_1,
+                                            arma::mat mean_std,
+                                            arma::mat cov_std,
+                                            double u);      
                               
   double UpdateK0(  arma::cube Omega, 
                     arma::mat mu_0,
@@ -110,9 +111,10 @@ class MCMC
                                           arma::mat Omega_1, 
                                           double k_0, 
                                           double epsilon0,
-                                          arma::vec m_1 ); 
+                                          arma::vec m_1,
+                                          double u); 
                                           
-  double merge_step_new( arma::uvec Z,
+  double merge_step_new(    arma::uvec Z,
                              int k_1,
                              int k_2,
                              arma::vec mu_01,

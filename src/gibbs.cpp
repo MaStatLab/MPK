@@ -185,6 +185,7 @@ void MCMC::main_loop(Rcpp::List state)
                   Z(Z_kk) = k*ones<uvec>(Z_kk.n_elem);
                   mat norm_draws = randn<mat>( J+1, p);
                   mat norm_draws_cov = randn<mat>( nu_1 + sum(N.col(k)) + sum(N.col(kk)), p);
+                  vec unifvec = randu<vec>(2);
                   kc = UpdateMuSigmaEpsilon(  Z,
                                               k,
                                               mu_0.col(k),
@@ -195,7 +196,8 @@ void MCMC::main_loop(Rcpp::List state)
                                               epsilon0,
                                               m_1,
                                               norm_draws,
-                                              norm_draws_cov
+                                              norm_draws_cov,
+                                              unifvec(0)
                                             ); 
                   mu.slice(k) = kc.mu; 
                   mu_0.col(k) = kc.mu_0;
@@ -206,10 +208,11 @@ void MCMC::main_loop(Rcpp::List state)
                   N.col(k) = N.col(k) + N.col(kk);
                   N.col(kk) = zeros<vec>(J);    
                   kc = PriorMuSigmaEpsilon(  Sigma_1, 
-                           Omega_1, 
-                           k_0, 
-                           epsilon0,
-                           m_1 );
+                                             Omega_1, 
+                                             k_0, 
+                                             epsilon0,
+                                             m_1,
+                                             unifvec(1));
                   mu.slice(kk) = kc.mu;
                   mu_0.col(kk) = kc.mu_0;
                   Omega.slice(kk) = kc.Omega;   
@@ -261,8 +264,9 @@ void MCMC::main_loop(Rcpp::List state)
     mat norm_draws_cov = randn<mat>( nu_1*K + n, p);
     vec dfs = zeros<vec>( K + 1 );
     dfs.rows(1, K)  =  cumsum( sum(N, 0).t() + nu_1 );
+    vec unifvec = randu<vec>(K);
         
-    // #pragma omp parallel for private(tempSMuSigma)
+    #pragma omp parallel for private(kc)
     for(int k=0; k < K; k++)
     {      
       kc = UpdateMuSigmaEpsilon(  Z,
@@ -275,7 +279,8 @@ void MCMC::main_loop(Rcpp::List state)
                                   epsilon0,
                                   m_1,
                                   norm_draws.rows( (J+1)*k, (J+1)*(k+1) - 1 ),
-                                  norm_draws_cov.rows(dfs(k), dfs(k+1) - 1 )
+                                  norm_draws_cov.rows(dfs(k), dfs(k+1) - 1 ),
+                                  unifvec(k)
                                 ); 
       mu.slice(k) = kc.mu; 
       mu_0.col(k) = kc.mu_0;
@@ -499,7 +504,8 @@ kernel_coeffs_type MCMC::UpdateMuSigmaEpsilon(    arma::uvec Z,
                                                   double epsilon0,
                                                   arma::vec m_1,
                                                   arma::mat mean_std,
-                                                  arma::mat cov_std  ) 
+                                                  arma::mat cov_std,
+                                                  double u) 
 { 
   kernel_coeffs_type output;
   uvec Z_k = arma::find(Z==k);  
@@ -522,7 +528,7 @@ kernel_coeffs_type MCMC::UpdateMuSigmaEpsilon(    arma::uvec Z,
     for(int j=0; j<J; j++)
       mu.col(j) = trans( mvrnormScaling(mean_std.row(j+1).cols(0,p-1), mu_0new,  Sigma*epsilon ));      
       
-    epsilon_new = 1/ rgammaBayesTruncated(tau_epsilon + 1, tau_epsilon*epsilon0, 1.0/trunc_epsilon, -1 );  
+    epsilon_new = 1/ rgammaBayesTruncated(u, tau_epsilon + 1, tau_epsilon*epsilon0, 1.0/trunc_epsilon, -1);  
     
   }
   else  // N_k > 0
@@ -590,7 +596,7 @@ kernel_coeffs_type MCMC::UpdateMuSigmaEpsilon(    arma::uvec Z,
       temp_ss +=  as_scalar( ( mu.col(j).t() - mu_0new.t()) * Omega * ( mu.col(j) - mu_0new ) ); 
     }  
 
-    epsilon_new = 1 / rgammaBayesTruncated(tau_epsilon + 1 + (double)p*J/2, 
+    epsilon_new = 1 / rgammaBayesTruncated(u, tau_epsilon + 1 + (double)p*J/2, 
                                             tau_epsilon*epsilon0 + temp_ss/2, 1.0/trunc_epsilon, -1);    
   }
   
@@ -727,7 +733,8 @@ kernel_coeffs_type MCMC::PriorMuSigmaEpsilon(   arma::mat Sigma_1,
                                                 arma::mat Omega_1, 
                                                 double k_0, 
                                                 double epsilon0,
-                                                arma::vec m_1 ) 
+                                                arma::vec m_1,
+                                                double u) 
 { 
   kernel_coeffs_type output;
   mat Omega(p,p);
@@ -739,9 +746,7 @@ kernel_coeffs_type MCMC::PriorMuSigmaEpsilon(   arma::mat Sigma_1,
   Omega = rWishartArma(Omega_1, nu_1);
   Sigma = inv_sympd( Omega );   
   
-//  while(epsilon > trunc_epsilon)
-//    epsilon = 1 / rgammaBayes(tau_epsilon + 1, tau_epsilon*epsilon0);
-  epsilon = 1 / rgammaBayesTruncated(tau_epsilon + 1, tau_epsilon*epsilon0, 1.0/trunc_epsilon, -1);  
+  epsilon = 1 / rgammaBayesTruncated(u, tau_epsilon + 1, tau_epsilon*epsilon0, 1.0/trunc_epsilon, -1);  
   
   mu_0new = trans(mvrnormArma(1, m_1, Sigma/k_0));    
   for(int j=0; j<J; j++)

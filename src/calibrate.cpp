@@ -13,7 +13,8 @@ Rcpp::List calib( arma::mat Y,
                   NumericVector mu_input,
                   IntegerVector mu_dim,
                   NumericVector mu0_input,
-                  IntegerVector mu0_dim
+                  IntegerVector mu0_dim,
+                  int ref
                 )
 {
   
@@ -29,7 +30,12 @@ Rcpp::List calib( arma::mat Y,
   for(int it=0; it<niter; it++)
   {
     for(int i=0; i<n; i++)
-      calibration.slice(i).row(it) =   mu.slice(it).cols(Z(it,i)*p,Z(it,i)*p+p-1).row(C(i)) - mu0.slice(it).col(Z(it,i)).t();
+    {
+      if(ref == -1)
+        calibration.slice(i).row(it) =   mu.slice(it).cols(Z(it,i)*p,Z(it,i)*p+p-1).row(C(i)) - mu0.slice(it).col(Z(it,i)).t();
+      else
+        calibration.slice(i).row(it) =   mu.slice(it).cols(Z(it,i)*p,Z(it,i)*p+p-1).row(C(i)) - mu.slice(it).cols(Z(it,i)*p,Z(it,i)*p+p-1).row(ref);
+    }
   }  
   
   for( int i = 0; i < n; i++)
