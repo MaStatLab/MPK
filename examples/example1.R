@@ -13,6 +13,18 @@ state = list(Z = sample(1:5, 1000, replace = TRUE))
 mcmc = list(nburn = 1, nsave = 1000, nskip = 1)
 ans = mpk(Y, C, mcmc = mcmc, state = state)
 
+
+cal.centered = calibrate(ans)
+cal.1 = calibrate(ans, reference.group = 1)
+cal.2 = calibrate(ans, reference.group = 2)
+par(mfrow=c(1,4))
+plot(Y, col = C, xlim = range(Y[,1]), ylim = range(Y[,2]) )
+plot(cal.centered$Y_cal, col = C, xlim = range(Y[,1]), ylim = range(Y[,2]) )
+plot(cal.1$Y_cal, col = C, xlim = range(Y[,1]), ylim = range(Y[,2]) )
+plot(cal.2$Y_cal, col = C, xlim = range(Y[,1]), ylim = range(Y[,2]) )
+
+
+
 plotDiff(ans, type = "weight")
 plotDiff(ans, type = "shift")
 
@@ -23,3 +35,7 @@ table(ans$chain$Z[1000,])
 plot.ts(ans$chain$epsilon[,1])
 plot.ts(ans$chain$epsilon[,4])
 
+
+it = 1000
+plot(ans$chain$w[1,,it])
+points(ans$chain$w[2,,it], col = "red")

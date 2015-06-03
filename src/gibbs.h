@@ -23,7 +23,7 @@ class MCMC
   private:
   mat Y;            // the data (n,J)
   vec C;            // the group membership (n,1)
-  int K;     // number of mixture components 
+  int K;            // number of mixture components 
   int J;            // the number of groups
   int n;            // number of observations
   int p;            // observation dimension
@@ -71,11 +71,14 @@ class MCMC
                             arma::cube Omega, 
                             arma::mat logW );
   
-  double UpdateAlpha(double alpha, arma::mat N, double alpha_par);
+  double UpdateAlpha(double alpha, arma::mat N, arma::uvec R, double alpha_par);
+
   
   
   arma::mat UpdateLogWs(   arma::mat N, 
-                           double alpha  );
+                               arma::uvec R,
+                               double rho,
+                               double alpha  );
                             
   kernel_coeffs_type UpdateMuSigmaEpsilon(  arma::uvec Z,
                               int k,  
@@ -104,13 +107,22 @@ class MCMC
                           arma::vec epsilon, 
                           double tau_epsilon, 
                           arma::vec tau_epsilon0,
-                          double epsilon0_par  );                   
+                          double epsilon0_par  );      
+                          
+  double updateEta( arma::uvec R);
+  
+  double updateRho( arma::mat N, arma::uvec R);
+
+
   
   kernel_coeffs_type PriorMuSigmaEpsilon( arma::mat Sigma_1, 
                                           arma::mat Omega_1, 
                                           double k_0, 
                                           double epsilon0,
                                           arma::vec m_1 ); 
+                                          
+  arma::uvec UpdateR( arma::uvec R, arma::mat N, double alpha, double rho, double eta  );
+                                        
                                           
   double merge_step_new( arma::uvec Z,
                              int k_1,

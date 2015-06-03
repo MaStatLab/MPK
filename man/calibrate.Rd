@@ -3,10 +3,12 @@
 \alias{calibrate}
 \title{Calibration across data-sets}
 \usage{
-calibrate(x)
+calibrate(x, reference.group = NULL)
 }
 \arguments{
 \item{x}{An \code{MPK} object}
+
+\item{reference.group}{}
 }
 \value{
 A list with three objects:

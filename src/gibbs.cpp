@@ -84,6 +84,9 @@ void MCMC::main_loop(Rcpp::List state)
   vec indices;
   // latent assignments
   uvec Z = Z_input;
+  uvec R(K);  R.fill(0);
+  double rho = 0.5;
+  double eta = 0.5;
   
   /* --- parameters --- */
   
@@ -228,9 +231,8 @@ void MCMC::main_loop(Rcpp::List state)
       }
     }
     
-                
     alpha_old = alpha;  
-    alpha = UpdateAlpha( alpha, N, alpha_par );
+    alpha = UpdateAlpha( alpha, N, R, alpha_par );
     if( it <= num_burnin )
     {
       if( alpha != alpha_old )
@@ -251,12 +253,18 @@ void MCMC::main_loop(Rcpp::List state)
           alpha_count++;
     }        
     
-    logW = UpdateLogWs( N, alpha );
+    R = UpdateR( R, N, alpha, rho, eta  );
+    
+    eta = updateEta(R);
+    
+    logW = UpdateLogWs( N, R, rho, alpha );
     
     List tempZ = UpdateZetas(mu, Omega, logW);   
     Z = Rcpp::as<uvec>(tempZ["Z"]);  
     N = Rcpp::as<mat>(tempZ["N"]);  
     
+    rho = updateRho( N, R);
+
     mat norm_draws = randn<mat>( K*(J+1), p);
     mat norm_draws_cov = randn<mat>( nu_1*K + n, p);
     vec dfs = zeros<vec>( K + 1 );
@@ -447,7 +455,7 @@ Rcpp::List MCMC::UpdateZetas(   arma::cube mu,
 }
 
 
-double MCMC::UpdateAlpha(double alpha, arma::mat N, double alpha_par)
+double MCMC::UpdateAlpha(double alpha, arma::mat N, arma::uvec R, double alpha_par)
 {
   double output = alpha;    
   double log_ratio = 0;
@@ -459,11 +467,26 @@ double MCMC::UpdateAlpha(double alpha, arma::mat N, double alpha_par)
   log_ratio += R::dgamma(temp, tau_alpha(0), 1/tau_alpha(1), 1);
   log_ratio -= R::dgamma(alpha, tau_alpha(0), 1/tau_alpha(1), 1);
   
-  for(int j = 0; j < J; j++)
+  uvec R0 = find(R == 0);
+  uvec R1 = find(R == 1);
+  int K_0 = R0.n_elem;
+  int K_1 = R1.n_elem;
+  
+  if(K_0 > 0)
   {
-      log_ratio += marginalLikeDirichlet( N.row(j).t(), (temp/K)*ones<vec>(K)  );
-      log_ratio -= marginalLikeDirichlet( N.row(j).t(), (alpha/K)*ones<vec>(K)  );
+    log_ratio += marginalLikeDirichlet( sum(N.cols(R0),0).t(), (temp/K_0)*ones<vec>(K_0)  );
+    log_ratio -= marginalLikeDirichlet( sum(N.cols(R0),0).t(), (alpha/K_0)*ones<vec>(K_0)  );
   }
+  if(K_1 > 0)
+  {
+    mat N1 = N.cols(R1);
+    for(int j = 0; j < J; j++)
+    {
+        log_ratio += marginalLikeDirichlet( N1.row(j).t(), (temp/K_1)*ones<vec>(K_1)  );
+        log_ratio -= marginalLikeDirichlet( N1.row(j).t(), (alpha/K_1)*ones<vec>(K_1)  );
+    }
+  }  
+
   if( exp(log_ratio) > R::runif(0,1) )
       output = temp;
       
@@ -474,13 +497,40 @@ double MCMC::UpdateAlpha(double alpha, arma::mat N, double alpha_par)
 
 
 arma::mat MCMC::UpdateLogWs(   arma::mat N, 
+                               arma::uvec R,
+                               double rho,
                                double alpha  )
 {
   
   mat logW(J,K);  
-
-  for(int j=0; j<J; j++)
-    logW.row(j) = rDirichlet( N.row(j).t() +  alpha * ones<vec>(K) / K  ).t();
+  uvec R0 = find(R==0);
+  uvec R1 = find(R==1);
+  int K_0 = R0.n_elem;
+  int K_1 = R1.n_elem;  
+  uvec jindex(1);
+  
+  if( K_0 > 0)
+  {
+    vec pi0 = rDirichlet( sum(N.cols(R0),0).t() +  alpha * ones<vec>(K_0) / K_0  );
+    mat N0 = N.cols(R0);
+    for(int j=0; j<J; j++)
+    {
+      jindex(0) = j;
+      logW.submat(jindex, R0) = pi0.t() + log(rho);
+    }
+      
+  }
+  
+  if(K_1 > 0)
+  {
+    mat N1 = N.cols(R1);
+    for(int j=0; j<J; j++)
+    {
+      jindex(0) = j;
+      logW.submat(jindex, R1) = rDirichlet( N1.row(j).t() +  alpha * ones<vec>(K_1) / K_1  ).t() + log(1.0 - rho);
+    }
+      
+  }
   
   return logW ;      
 }
@@ -721,6 +771,83 @@ Rcpp::List MCMC::get_diff()
     );
 };
 
+
+arma::uvec MCMC::UpdateR( arma::uvec R, arma::mat N, double alpha, double rho, double eta  )
+{
+  
+  uvec jindex(1);
+  vec log_like(2);
+  vec u = randu(K);
+  double alpha_rho = 1.0;
+  double beta_rho = 1.0;
+  double alpha_eta = 1.0;
+  double beta_eta = 1.0;
+  
+  for( int k = 0; k < K; k++)
+  {
+    
+    log_like.fill(0);
+    uvec R_temp = R;
+    if( sum(R_temp) - R_temp(k) > 0 )
+    {
+      for(int r = 0; r < 2; r++)
+      {
+        R_temp(k) = r;
+        uvec R_temp_0 = find(R_temp == 0);
+        uvec R_temp_1 = find(R_temp == 1);
+        int K_temp_0 = R_temp_0.n_elem;
+        int K_temp_1 = R_temp_1.n_elem;
+        
+        log_like(r) += lgamma( alpha_rho + accu(N.cols(R_temp_0)) ) + lgamma(beta_rho + accu(N.cols(R_temp_1)) );
+        
+        mat N_temp_0 = N.cols(R_temp_0);
+        mat N_temp_1 = N.cols(R_temp_1);
+        
+        if( K_temp_0 > 0)
+          log_like(r) += marginalLikeDirichlet(  sum(N_temp_0, 0).t(), (alpha/K_temp_0)*ones<vec>(K_temp_0) );
+        if( K_temp_1 > 0)
+        {
+          for(int j = 0; j < J; j++)
+            log_like(r) += marginalLikeDirichlet(  N_temp_1.row(j).t(), (alpha/K_temp_1)*ones<vec>(K_temp_1) );
+        }              
+        log_like(r) += lgamma(alpha_eta + K_temp_0  ) + lgamma(beta_eta + K_temp_1  );   
+      }
+  
+      log_like = log_like - max(log_like);    
+      if( exp(  log_like(0) - log_exp_x_plus_exp_y(log_like(0), log_like(1) ) ) > u(k)  )
+        R(k) = 0;
+      else
+        R(k) = 1;
+    }
+    else
+      R(k) = 0;
+
+  }
+  
+  return(R);
+
+}
+
+double MCMC::updateEta( arma::uvec R)
+{
+  double a = 1;
+  double b = 1;
+  uvec R0 = find(R == 0);
+  int K_0 = R0.n_elem;
+  return( rbeta(1, a + K_0, b + K - K_0 )(0) );
+}
+
+
+double MCMC::updateRho( arma::mat N, arma::uvec R)
+{
+  double a = 1;
+  double b = 1;
+  uvec R_0 = find(R == 0);
+  uvec R_1 = find(R == 1);
+  double n_0 = accu(N.cols(R_0));
+  double n_1 = accu(N.cols(R_1));
+  return( rbeta(1, a + n_0, b + n_1 )(0) );
+}
 
 
 kernel_coeffs_type MCMC::PriorMuSigmaEpsilon(   arma::mat Sigma_1, 
